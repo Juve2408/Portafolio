@@ -1,0 +1,319 @@
+<?php
+include 'conexion.php'; // ASEGÚRATE DE QUE ESTA SEA LA PRIMERA LÍNEA
+
+// 2. CONSULTA A LA BASE DE DATOS
+$sql = "SELECT * FROM pandillas";
+$result = $conn->query($sql);
+
+$pandillas_array = array();
+
+if ($result && $result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        // Convertimos números para que el mapa no falle
+        $row['latitud_reunion'] = floatval($row['latitud_reunion']);
+        $row['longitud_reunion'] = floatval($row['longitud_reunion']);
+        $row['num_integrantes_aproximado'] = intval($row['num_integrantes_aproximado']);
+        
+        // Agregamos la pandilla a la lista
+        $pandillas_array[] = $row;
+    }
+}
+$conn->close();
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ela's - Mapa de Situación</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; display: flex; flex-direction: column; min-height: 100vh; }
+        .header { background-color: #0d47a1; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header .logo { font-size: 24px; font-weight: bold; }
+        .header .log-in-btn { background-color: #333; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; transition: background 0.3s; }
+        .header .log-in-btn:hover { background-color: #555; }
+        
+        .main-content { padding: 20px; flex-grow: 1; text-align: center; }
+        .map-container { max-width: 1200px; margin: 0 auto; background-color: white; border: 1px solid #ccc; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        #map { height: 600px; width: 100%; border-radius: 8px; margin-bottom: 20px; background-color: #eee; }
+        
+        .controls { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; justify-content: center; align-items: center; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        .control-label { font-size: 12px; font-weight: bold; color: #555; text-align: left; }
+        
+        select, button { padding: 10px 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        button { background-color: #0d47a1; color: white; border: none; font-weight: bold; }
+        button:hover { background-color: #1565c0; }
+        button.active { background-color: #4CAF50; }
+        button.secondary { background-color: #757575; }
+        
+        .zone-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
+        .zone-btn { padding: 8px 12px; background-color: #e0e0e0; border: none; border-radius: 4px; color: #333; font-weight: normal; }
+        .zone-btn:hover { background-color: #d5d5d5; }
+        .zone-btn.active { background-color: #0d47a1; color: white; font-weight: bold; }
+        
+        .gang-info { display: none; background-color: #f1f8ff; border: 1px solid #bbdefb; border-radius: 8px; padding: 20px; margin-top: 15px; text-align: left; animation: fadeIn 0.3s ease; }
+        .gang-info.active { display: block; }
+        .gang-info h3 { margin-top: 0; color: #0d47a1; border-bottom: 1px solid #bbdefb; padding-bottom: 10px; }
+        .gang-detail { margin-bottom: 8px; font-size: 15px; }
+        
+        .danger-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; color: white; font-weight: bold; font-size: 12px; }
+        .danger-low { background-color: #4CAF50; }
+        .danger-medium { background-color: #FFC107; color: #333; }
+        .danger-high { background-color: #FF9800; }
+        .danger-very-high { background-color: #F44336; }
+        .danger-extreme { background-color: #B71C1C; }
+        
+        .loading { text-align: center; padding: 20px; color: #666; font-style: italic; }
+        .footer { background-color: #333; color: white; padding: 20px; margin-top: auto; text-align: center; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (max-width: 768px) {
+            .controls { flex-direction: column; align-items: stretch; }
+            #map { height: 400px; }
+            .zone-buttons { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Ela's Control</div>
+        <button class="log-in-btn" onclick="location.href='dos.php'">Iniciar Sesión</button>
+    </div>
+
+    <div class="main-content">
+        <h1>Mapa de Situación de Pandillas</h1>
+        
+        <div class="map-container">
+            <div class="controls">
+                <div class="control-group">
+                    <span class="control-label">Filtrar por Peligrosidad:</span>
+                    <select id="dangerFilter">
+                        <option value="all">Todas las Pandillas</option>
+                        <option value="Baja">Baja</option>
+                        <option value="Media">Media</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Muy Alta">Muy Alta</option>
+                        <option value="Extrema">Extrema</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <span class="control-label">Zonas de la Ciudad:</span>
+                    <div class="zone-buttons">
+                        <button class="zone-btn" data-zone="centro">Centro</button>
+                        <button class="zone-btn" data-zone="norte">Norte</button>
+                        <button class="zone-btn" data-zone="sur">Sur</button>
+                        <button class="zone-btn" data-zone="este">Este</button>
+                        <button class="zone-btn" data-zone="oeste">Oeste</button>
+                    </div>
+                </div>
+                
+                <div class="control-group" style="flex-direction: row; align-items: flex-end; gap: 10px;">
+                    <button id="toggleHeatmap">🔥 Activar Mapa de Calor</button>
+                    <button id="resetView" class="secondary">🔄 Restablecer</button>
+                </div>
+            </div>
+            
+            <div id="map">
+                <div class="loading">Cargando mapa...</div>
+            </div>
+            
+            <div class="gang-info" id="gangInfo">
+                <h3 id="gangName">Nombre de la Pandilla</h3>
+                <div class="gang-detail"><strong>Alias:</strong> <span id="gangAlias">-</span></div>
+                <div class="gang-detail"><strong>Peligrosidad:</strong> <span id="gangDanger" class="danger-badge">-</span></div>
+                <div class="gang-detail"><strong>Zona:</strong> <span id="gangZone" style="font-weight:bold; color:#555;">-</span></div>
+                <div class="gang-detail"><strong>Integrantes aprox.:</strong> <span id="gangMembers">-</span></div>
+                <div class="gang-detail"><strong>Horario Reunión:</strong> <span id="gangSchedule">-</span></div>
+                <div class="gang-detail"><strong>Lugar:</strong> <span id="gangLocation">-</span></div>
+                <div class="gang-detail"><strong>Descripción:</strong> <span id="gangDescription">-</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Sistema de Control v1.0 - 2025</div>
+
+    <script>
+        // Imprimimos el JSON directamente desde PHP
+       const gangsData = <?php echo isset($pandillas_array) ? json_encode($pandillas_array) : '[]'; ?>;
+
+        let map, heatmap, markers = [];
+        let heatmapActive = false;
+
+        const zones = {
+            centro: { center: { lat: 22.148236, lng: -100.983523 } },
+            norte: { center: { lat: 22.180000, lng: -100.993523 } },
+            sur: { center: { lat: 22.110000, lng: -100.990000 } },
+            este: { center: { lat: 22.148236, lng: -100.930000 } },
+            oeste: { center: { lat: 22.148236, lng: -101.030000 } }
+        };
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 12,
+                center: { lat: 22.148236, lng: -100.983523 },
+                mapTypeId: "roadmap"
+            });
+
+            if (gangsData && gangsData.length > 0) {
+                initMarkers();
+                initHeatmap();
+                setupEventListeners();
+            } else {
+                document.getElementById('map').innerHTML = '<div class="loading">No hay datos en la BD.</div>';
+                console.log("PHP Data:", gangsData);
+            }
+        }
+
+        function initMarkers() {
+            markers.forEach(marker => marker.setMap(null));
+            markers = [];
+            
+            gangsData.forEach(gang => {
+                const lat = parseFloat(gang.latitud_reunion);
+                const lng = parseFloat(gang.longitud_reunion);
+                
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    let markerColor = "#9E9E9E";
+                    const peli = (gang.peligrosidad || "").toLowerCase();
+                    
+                    if(peli === "baja") markerColor = "#4CAF50"; 
+                    else if(peli === "media") markerColor = "#FFC107"; 
+                    else if(peli === "alta") markerColor = "#FF9800"; 
+                    else if(peli === "muy alta") markerColor = "#F44336"; 
+                    else if(peli === "extrema") markerColor = "#B71C1C"; 
+                    
+                    const marker = new google.maps.Marker({
+                        position: { lat: lat, lng: lng },
+                        map: map,
+                        title: gang.nombre,
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 10,
+                            fillColor: markerColor,
+                            fillOpacity: 1,
+                            strokeColor: "white",
+                            strokeWeight: 2
+                        }
+                    });
+
+                    marker.gangData = gang; 
+                    
+                    marker.addListener('click', () => {
+                        showGangInfo(gang);
+                        map.panTo(marker.getPosition());
+                    });
+                    
+                    markers.push(marker);
+                }
+            });
+        }
+
+        function initHeatmap() {
+            let heatmapPoints = [];
+            gangsData.forEach(gang => {
+                const lat = parseFloat(gang.latitud_reunion);
+                const lng = parseFloat(gang.longitud_reunion);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    let weight = 1;
+                    const peli = (gang.peligrosidad || "").toLowerCase();
+                    if(peli === "alta") weight = 3;
+                    if(peli === "extrema" || peli === "muy alta") weight = 5;
+
+                    heatmapPoints.push({
+                        location: new google.maps.LatLng(lat, lng),
+                        weight: weight
+                    });
+                }
+            });
+
+            heatmap = new google.maps.visualization.HeatmapLayer({
+                data: heatmapPoints,
+                radius: 40,
+                opacity: 0.6
+            });
+        }
+
+        function showGangInfo(gang) {
+            const safePeligrosidad = (gang.peligrosidad || 'medium').toLowerCase().replace(' ', '-');
+            const dangerClass = `danger-${safePeligrosidad}`;
+            
+            document.getElementById('gangName').textContent = gang.nombre;
+            document.getElementById('gangAlias').textContent = gang.alias || '-';
+            
+            const dangerSpan = document.getElementById('gangDanger');
+            dangerSpan.textContent = gang.peligrosidad || 'Desconocida';
+            dangerSpan.className = ''; 
+            dangerSpan.classList.add('danger-badge', dangerClass);
+            
+            document.getElementById('gangZone').textContent = (gang.zona || 'No asignada').toUpperCase();
+            document.getElementById('gangMembers').textContent = gang.num_integrantes_aproximado || '-';
+            document.getElementById('gangSchedule').textContent = gang.horario_reunion || '-';
+            document.getElementById('gangLocation').textContent = gang.lugar_reunion || '-';
+            document.getElementById('gangDescription').textContent = gang.descripcion || '-';
+            
+            document.getElementById('gangInfo').classList.add('active');
+        }
+
+        function setupEventListeners() {
+            document.getElementById('dangerFilter').addEventListener('change', function() {
+                const selectedDanger = this.value.toLowerCase(); 
+                markers.forEach(marker => {
+                    const markerPeli = (marker.gangData.peligrosidad || "").toLowerCase();
+                    const visible = (selectedDanger === 'all' || markerPeli === selectedDanger);
+                    marker.setVisible(visible);
+                });
+            });
+
+            document.getElementById('toggleHeatmap').addEventListener('click', function() {
+                heatmapActive = !heatmapActive;
+                if (heatmapActive) {
+                    this.textContent = '❄️ Desactivar Mapa de Calor';
+                    this.classList.add('active');
+                    markers.forEach(m => m.setVisible(false));
+                    heatmap.setMap(map);
+                } else {
+                    this.textContent = '🔥 Activar Mapa de Calor';
+                    this.classList.remove('active');
+                    markers.forEach(m => m.setVisible(true));
+                    heatmap.setMap(null);
+                }
+            });
+
+            document.querySelectorAll('.zone-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    const zoneKey = this.getAttribute('data-zone');
+                    if (zones[zoneKey]) {
+                        map.setCenter(zones[zoneKey].center);
+                        map.setZoom(13);
+                    }
+                    markers.forEach(marker => {
+                        const markerZone = (marker.gangData.zona || '').toLowerCase();
+                        if (markerZone === zoneKey) {
+                            marker.setVisible(true);
+                            marker.setAnimation(google.maps.Animation.DROP);
+                        } else {
+                            marker.setVisible(false);
+                        }
+                    });
+                });
+            });
+
+            document.getElementById('resetView').addEventListener('click', function() {
+                map.setCenter({ lat: 22.148236, lng: -100.983523 });
+                map.setZoom(12);
+                document.getElementById('dangerFilter').value = 'all';
+                document.querySelectorAll('.zone-btn').forEach(b => b.classList.remove('active'));
+                markers.forEach(marker => marker.setVisible(true));
+                document.getElementById('gangInfo').classList.remove('active');
+            });
+        }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA2hmJyVpimhxu1OsTt9eUIz-9NUnj2qYw&libraries=visualization&callback=initMap"></script>
+</body>
+</html>
