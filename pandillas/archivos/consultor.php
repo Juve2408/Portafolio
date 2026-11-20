@@ -361,7 +361,7 @@ $incidentes_json = json_encode($incidentes_data);
         const mapDiv = document.getElementById("map-admin");
         mapDiv.innerHTML = `
             <div style="text-align: center; padding: 50px; color: red; font-weight: bold;">
-                ❌ ERROR AL CARGAR EL MAPA ❌<br><br>
+                 ERROR AL CARGAR EL MAPA <br><br>
                 1. Revisa que tu Clave API en Google Maps sea correcta.<br>
                 2. Asegúrate de haber habilitado la 'Maps JavaScript API'.
             </div>
@@ -369,6 +369,6 @@ $incidentes_json = json_encode($incidentes_data);
         mapDiv.style.backgroundColor = '#ffeeee';
         }
     </script>
-
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA2hmJyVpimhxu1OsTt9eUIz-9NUnj2qYw&libraries=visualization,geometry&callback=initMap&callback=initMap"></script></body>
+  //aqui va tu api key del mapa
+<script async defer src="api-key"></script></body>
 </html>
