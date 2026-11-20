@@ -295,7 +295,7 @@ if ($usuario) {
     <div class="footer">
         <div class="footer-contact-info">
             <strong>Correos de contacto</strong>
-            <p>186115@upslp.edu.mx</p>
+            <p>juve240806@gmail.com</p>
         </div>
     </div>
 
