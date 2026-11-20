@@ -270,6 +270,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             });
         }
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA2hmJyVpimhxu1OsTt9eUIz-9NUnj2qYw&callback=initMapInt"></script>
+    <script async defer src="Api-key"></script>
 </body>
 </html>
