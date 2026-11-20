@@ -138,7 +138,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     <div class="footer">
         <strong>Correos de contacto</strong>
-        <p>186115@upslp.edu.mx</p>
+        <p>juve240806@gmail.com</p>
     </div>
 
 </body>
