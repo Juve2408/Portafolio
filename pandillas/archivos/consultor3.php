@@ -5,7 +5,7 @@ if (!isset($_SESSION['usuario_id'])) {
     exit();
 }
 
-// Configuración de la base de datos
+// Configuración de la base de datos cambia los datos segun tus datos
 $host = 'localhost';
 $dbname = 'control_pandillas'; // Cambia por el nombre de tu BD
 $username = 'root'; // Cambia por tu usuario
