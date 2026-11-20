@@ -414,6 +414,6 @@ $conn->close();
             mapDiv.style.backgroundColor = '#ffeeee';
         }
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA2hmJyVpimhxu1OsTt9eUIz-9NUnj2qYw&libraries=visualization&callback=initMap"></script>
+    <script async defer src="Api-Key"></script>
 </body>
 </html>
